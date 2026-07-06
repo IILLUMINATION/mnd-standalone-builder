@@ -2,6 +2,7 @@ name: mnd_standalone_builder
 description: Standalone Meander quest player with embedded quest. Build your own adventure app.
 publish_to: 'none'
 version: 1.0.0+1
+repository: https://github.com/IILLUMINATION/mnd-standalone-builder
 
 environment:
   sdk: ^3.9.2
@@ -11,9 +12,11 @@ dependencies:
   flutter:
     sdk: flutter
   mnd_player:
-    path: packages/mnd_player
+    git:
+      url: https://github.com/IILLUMINATION/mnd-player.git
   mnd_core:
-    path: packages/mnd_core
+    git:
+      url: https://github.com/IILLUMINATION/mnd-core.git
   flutter_riverpod: ^2.5.1
   path_provider: ^2.0.15
   path: ^1.8.3

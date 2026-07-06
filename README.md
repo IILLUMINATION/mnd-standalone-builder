@@ -1,6 +1,8 @@
 # MND Standalone Builder
 
-Turn your Meander quest into a standalone app for any platform.
+Turn your [Meander](https://github.com/IILLUMINATION/mnd-core) quest into a standalone app for any platform.
+
+Built with [mnd_player](https://github.com/IILLUMINATION/mnd-player) and [mnd_core](https://github.com/IILLUMINATION/mnd-core).
 
 ## Quick Start
 
@@ -31,4 +33,4 @@ Add these repository secrets for Google Play AAB signing:
 
 ## License
 
-MIT
+[GNU AGPL v3.0](https://github.com/IILLUMINATION/mnd-player/blob/main/LICENSE) — same as [mnd_core](https://github.com/IILLUMINATION/mnd-core) and [mnd_player](https://github.com/IILLUMINATION/mnd-player).
