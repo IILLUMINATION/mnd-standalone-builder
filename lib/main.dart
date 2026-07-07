@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
-
+import 'dart:io' show File, Directory;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mnd_player/mnd_player.dart';
+import 'package:mnd_player/services/mnd_player_bootstrap.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
@@ -32,32 +32,28 @@ Future<void> _setupQuestAssets() async {
 
   await Directory(targetDir).create(recursive: true);
 
-  try {
-    final data = await rootBundle.load('assets/quest.mnd');
-    final rawBytes = data.buffer.asUint8List();
+  final data = await rootBundle.load('assets/quest.mnd');
+  final rawBytes = data.buffer.asUint8List();
 
-    final header = String.fromCharCodes(rawBytes.take(8));
-    Uint8List zipBytes;
-    if (header == 'MND_ZIP_') {
-      zipBytes = Uint8List.sublistView(rawBytes, 8);
+  final header = String.fromCharCodes(rawBytes.take(8));
+  Uint8List zipBytes;
+  if (header == 'MND_ZIP_') {
+    zipBytes = Uint8List.sublistView(rawBytes, 8);
+  } else {
+    zipBytes = rawBytes;
+  }
+
+  final archive = ZipDecoder().decodeBytes(zipBytes);
+
+  for (final file in archive) {
+    final targetPath = p.join(targetDir, file.name);
+    if (file.isFile) {
+      final targetFile = File(targetPath);
+      await targetFile.parent.create(recursive: true);
+      await targetFile.writeAsBytes(file.content as List<int>);
     } else {
-      zipBytes = rawBytes;
+      await Directory(targetPath).create(recursive: true);
     }
-
-    final archive = ZipDecoder().decodeBytes(zipBytes);
-
-    for (final file in archive) {
-      final targetPath = p.join(targetDir, file.name);
-      if (file.isFile) {
-        final targetFile = File(targetPath);
-        await targetFile.parent.create(recursive: true);
-        await targetFile.writeAsBytes(file.content as List<int>);
-      } else {
-        await Directory(targetPath).create(recursive: true);
-      }
-    }
-  } catch (e, st) {
-    rethrow;
   }
 }
 
@@ -103,7 +99,7 @@ class _TemplateQuestAppState extends ConsumerState<TemplateQuestApp> {
           _loading = false;
         });
       }
-    } catch (e, st) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _error = e.toString();
