@@ -4,29 +4,61 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mnd_core/mnd_core.dart';
 import 'package:mnd_player/mnd_player.dart';
 import 'package:mnd_player/services/mnd_player_bootstrap.dart';
+import 'package:mnd_player/services/expression_evaluator.dart';
+import 'package:mnd_player_kit/adapters/in_memory_asset_store.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
+import 'package:http/http.dart' as http;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  String? setupError;
-  try {
+  if (kIsWeb) {
+    await _setupWeb();
+  } else {
     await _setupQuestAssets();
-  } catch (e) {
-    setupError = e.toString();
-  }
-
-  try {
     MndPlayerBootstrap.initialize();
-  } catch (_) {
-    if (setupError == null) setupError = 'Failed to initialize player engine';
   }
 
-  runApp(ProviderScope(child: TemplateQuestApp(bootstrapError: setupError)));
+  runApp(const ProviderScope(child: TemplateQuestApp()));
+}
+
+Future<void> _setupWeb() async {
+  try {
+    final bytes = await _loadQuestBytes();
+    final store = InMemoryAssetStore.fromZip(bytes);
+
+    FileStorage.memoryStore = store;
+
+    ScriptExecutor.configure(
+      expressionEngine: _WebExpressionEngine(),
+      assetStore: store,
+    );
+  } catch (_) {}
+}
+
+Future<Uint8List> _loadQuestBytes() async {
+  try {
+    final response = await http.get(Uri.parse('quest.mnd'));
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    }
+  } catch (_) {}
+
+  final data = await rootBundle.load('assets/quest.mnd');
+  return data.buffer.asUint8List();
+}
+
+class _WebExpressionEngine implements ScriptExpressionEngine {
+  final _evaluator = ExpressionEvaluatorService();
+
+  @override
+  dynamic evaluate(dynamic input, Map<String, dynamic> context) =>
+      _evaluator.evaluate(input, context);
 }
 
 Future<void> _setupQuestAssets() async {
@@ -71,8 +103,7 @@ Future<void> _setupQuestAssets() async {
 }
 
 class TemplateQuestApp extends ConsumerStatefulWidget {
-  final String? bootstrapError;
-  const TemplateQuestApp({super.key, this.bootstrapError});
+  const TemplateQuestApp({super.key});
 
   @override
   ConsumerState<TemplateQuestApp> createState() => _TemplateQuestAppState();
@@ -87,15 +118,7 @@ class _TemplateQuestAppState extends ConsumerState<TemplateQuestApp> {
   @override
   void initState() {
     super.initState();
-    final preExistingError = widget.bootstrapError;
-    if (preExistingError != null) {
-      setState(() {
-        _error = preExistingError;
-        _loading = false;
-      });
-      return;
-    }
-    _bootstrap();
+    Future.microtask(() => _bootstrap());
   }
 
   Future<void> _bootstrap() async {
@@ -107,7 +130,13 @@ class _TemplateQuestAppState extends ConsumerState<TemplateQuestApp> {
       final configFile = File(configPath);
 
       if (!await configFile.exists()) {
-        throw Exception('config.json not found in embedded quest');
+        if (mounted) {
+          setState(() {
+            _error = 'config.json not found at: $configPath';
+            _loading = false;
+          });
+        }
+        return;
       }
 
       final content = await configFile.readAsString();
