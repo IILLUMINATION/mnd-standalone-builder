@@ -12,23 +12,36 @@ import 'package:archive/archive.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _setupQuestAssets();
-  MndPlayerBootstrap.initialize();
-  runApp(const ProviderScope(child: TemplateQuestApp()));
+
+  String? setupError;
+  try {
+    await _setupQuestAssets();
+  } catch (e) {
+    setupError = e.toString();
+  }
+
+  try {
+    MndPlayerBootstrap.initialize();
+  } catch (_) {
+    if (setupError == null) setupError = 'Failed to initialize player engine';
+  }
+
+  runApp(ProviderScope(child: TemplateQuestApp(bootstrapError: setupError)));
 }
 
 Future<void> _setupQuestAssets() async {
   final appDir = await getApplicationDocumentsDirectory();
   final targetDir = p.join(appDir.path, 'quests', 'embedded');
+  final configPath = p.join(targetDir, 'config.json');
 
-  final configFile = File(p.join(targetDir, 'config.json'));
-  if (await configFile.exists()) {
-    if (kDebugMode) {
+  final alreadyExtracted = await File(configPath).exists();
+  if (alreadyExtracted && !kDebugMode) return;
+
+  try {
+    if (alreadyExtracted) {
       await Directory(targetDir).delete(recursive: true);
-    } else {
-      return;
     }
-  }
+  } catch (_) {}
 
   await Directory(targetDir).create(recursive: true);
 
@@ -58,7 +71,8 @@ Future<void> _setupQuestAssets() async {
 }
 
 class TemplateQuestApp extends ConsumerStatefulWidget {
-  const TemplateQuestApp({super.key});
+  final String? bootstrapError;
+  const TemplateQuestApp({super.key, this.bootstrapError});
 
   @override
   ConsumerState<TemplateQuestApp> createState() => _TemplateQuestAppState();
@@ -73,6 +87,14 @@ class _TemplateQuestAppState extends ConsumerState<TemplateQuestApp> {
   @override
   void initState() {
     super.initState();
+    final preExistingError = widget.bootstrapError;
+    if (preExistingError != null) {
+      setState(() {
+        _error = preExistingError;
+        _loading = false;
+      });
+      return;
+    }
     _bootstrap();
   }
 
@@ -129,9 +151,9 @@ class _TemplateQuestAppState extends ConsumerState<TemplateQuestApp> {
           body: Center(
             child: Padding(
               padding: const EdgeInsets.all(32),
-              child: Text(
-                _error ?? 'Error',
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
+              child: SelectableText(
+                _error ?? 'Unknown error',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ),
