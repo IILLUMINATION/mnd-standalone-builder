@@ -1,36 +1,67 @@
 # MND Standalone Builder
 
-Turn your [Meander](https://github.com/IILLUMINATION/mnd-core) quest into a standalone app for any platform.
+Собери свой квест Meander как standalone-приложение для любой платформы.
 
-Built with [mnd_player](https://github.com/IILLUMINATION/mnd-player) and [mnd_core](https://github.com/IILLUMINATION/mnd-core).
+Построен на [mnd_player](https://github.com/IILLUMINATION/mnd-player),
+[mnd_player_kit](https://github.com/IILLUMINATION/mnd-kit) и
+[mnd_core](https://github.com/IILLUMINATION/mnd-core).
 
-## Quick Start
+⚠️ **Лицензия: GNU AGPL v3.0** — ваше standalone-приложение тоже должно быть под AGPL.
 
-1. **Fork this repository** (or click "Use this template")
-2. **Replace `assets/quest.mnd`** with your quest file
-3. **Go to Actions** tab → "Build Standalone App" → "Run workflow"
-4. Fill in your app name, package name, and pick a platform
-5. **Download your app** from the workflow artifacts
+## Как использовать
 
-## Supported Platforms
+### Локальная сборка
 
-| Platform | Runner | Output |
-|----------|--------|--------|
-| Android APK | ubuntu-latest | `.apk` |
-| Android AAB | ubuntu-latest | `.aab` (Google Play) |
-| Web | ubuntu-latest | HTML/JS bundle |
-| Windows | windows-latest | `.exe` |
-| Linux | ubuntu-latest | binary bundle |
+```bash
+# 1. Клонировать репо
+git clone https://github.com/IILLUMINATION/mnd-standalone-builder.git
+cd mnd-standalone-builder
 
-## Custom App Icon
+# 2. Заменить quest.mnd на свой квест
+cp /path/to/your-quest.mnd assets/quest.mnd
+cp /path/to/your-quest.mnd web/quest.mnd   # для web
 
-Add a `ICON_PNG_B64` repository secret with your Base64-encoded PNG icon (minimum 1024x1024). The workflow will generate launcher icons for all platforms.
+# 3. Собрать
+flutter build apk --release    # Android
+flutter build web --base-href /    # Web (менять base-href под свой домен)
+flutter build linux --release  # Linux
+flutter build windows --release # Windows
+```
 
-## Android Signing (Google Play)
+### CI/CD сборка (GitHub Actions)
 
-Add these repository secrets for Google Play AAB signing:
-- `KEYSTORE_B64` — Base64-encoded `.jks` keystore file
+1. Форкнуть репо (или "Use this template")
+2. Заменить `assets/quest.mnd` + `web/quest.mnd`
+3. Actions → "Build Standalone App" → Run workflow
+4. Скачать артефакты
 
-## License
+## Поддерживаемые платформы
 
-[GNU AGPL v3.0](https://github.com/IILLUMINATION/mnd-player/blob/main/LICENSE) — same as [mnd_core](https://github.com/IILLUMINATION/mnd-core) and [mnd_player](https://github.com/IILLUMINATION/mnd-player).
+| Платформа | Команда | Выходной файл |
+|-----------|---------|--------------|
+| Android APK | `flutter build apk --release` | `.apk` |
+| Android AAB | `flutter build appbundle --release` | `.aab` (Google Play) |
+| Web | `flutter build web --base-href /` | HTML/JS |
+| Linux | `flutter build linux --release` | бинарный пакет |
+| Windows | `flutter build windows --release` | `.exe` |
+
+## Кастомизация
+
+- **Иконка:** base64 PNG в секрете `ICON_PNG_B64` (минимум 1024x1024)
+- **Подпись Android:** keystore в секрете `KEYSTORE_B64`
+- **Название приложения:** меняется в CI/CD параметрах
+
+## Структура проекта
+
+```
+assets/quest.mnd    ← твой квест (для мобилок/десктопа, вкомпилирован)
+web/quest.mnd       ← твой квест (для web, отдельный файл)
+lib/main.dart       ← точка входа (распаковка ZIP, запуск плеера)
+```
+
+## Web-особенности
+
+- `.mnd` загружается отдельным HTTP-запросом (не вкомпилирован в JS)
+- Аудио отключено под web (ограничение платформы)
+- Сохранения отключены под web (нет файловой системы)
+- Квест загружается в память через `InMemoryAssetStore`
