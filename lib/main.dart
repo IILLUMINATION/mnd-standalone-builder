@@ -28,25 +28,21 @@ Future<void> main() async {
 }
 
 Future<void> _setupWeb() async {
-  try {
-    final bytes = await _loadQuestBytes();
-    final store = InMemoryAssetStore.fromZip(bytes);
+  final bytes = await _loadQuestBytes();
+  final store = InMemoryAssetStore.fromZip(bytes);
 
-    FileStorage.memoryStore = store;
+  FileStorage.memoryStore = store;
 
-    ScriptExecutor.configure(
-      expressionEngine: _WebExpressionEngine(),
-      assetStore: store,
-    );
-  } catch (_) {}
+  ScriptExecutor.configure(
+    expressionEngine: _WebExpressionEngine(),
+    assetStore: store,
+  );
 }
 
 Future<Uint8List> _loadQuestBytes() async {
   try {
     final response = await http.get(Uri.parse('quest.mnd'));
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
-    }
+    if (response.statusCode == 200) return response.bodyBytes;
   } catch (_) {}
 
   final data = await rootBundle.load('assets/quest.mnd');
@@ -123,16 +119,38 @@ class _TemplateQuestAppState extends ConsumerState<TemplateQuestApp> {
 
   Future<void> _bootstrap() async {
     try {
-      final appDir = await getApplicationDocumentsDirectory();
+      final configPath = 'quests/embedded/config.json';
 
-      final configPath =
-          p.join(appDir.path, 'quests', 'embedded', 'config.json');
-      final configFile = File(configPath);
+      if (kIsWeb) {
+        if (!await FileStorage.exists(configPath)) {
+          if (mounted) {
+            setState(() {
+              _error = 'config.json not found in quest';
+              _loading = false;
+            });
+          }
+          return;
+        }
+        final config = await FileStorage.readJsonFile(configPath);
+        final startNodeId = config['startNodeId'] as String? ?? '';
+        if (mounted) {
+          setState(() {
+            _questId = 'embedded';
+            _startNodeId = startNodeId;
+            _loading = false;
+          });
+        }
+        return;
+      }
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final fullPath = p.join(appDir.path, configPath);
+      final configFile = File(fullPath);
 
       if (!await configFile.exists()) {
         if (mounted) {
           setState(() {
-            _error = 'config.json not found at: $configPath';
+            _error = 'config.json not found at: $fullPath';
             _loading = false;
           });
         }
